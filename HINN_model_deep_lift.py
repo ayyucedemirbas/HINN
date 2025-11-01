@@ -35,22 +35,22 @@ def load_and_process_data():
     expression = preprocess("gene_data.csv", "expression")
     methy = preprocess("methyl_data.csv", "methy")
     snp = preprocess("snp_data.csv", "snp")
+    
     demograph = pd.read_csv("demo_label_data.csv", usecols=range(7))
     demograph.index = demograph.iloc[:, 0]
     demograph = demograph.drop(demograph.columns[0], axis=1)
     demograph.columns = [f"{col}_demograph" for col in demograph.columns]
 
-    label = pd.read_csv("demo_label_data.csv", usecols=[0, 7])
+    label = pd.read_csv("demo_label_data.csv", usecols=[0, 8])
     label.index = label.iloc[:, 0]
     label = label.drop(label.columns[0], axis=1)
     label.columns = [f"{col}_label" for col in label.columns]
 
     data = pd.concat([snp, expression, methy, demograph, label], axis=1)
 
-    data = data.dropna(subset=['ADAS11_label'])
+    data = data.dropna(subset=['MMSE_label'])
     
     return data
-
 
 
 class PrimaryInputLayer(keras.layers.Layer):
@@ -164,7 +164,6 @@ class MultiplicationInputLayer(keras.layers.Layer):
         return config
 
 
-
 def preprocess_features(X_train, X_test, feature_types):
     X_train_processed = {}
     X_test_processed = {}
@@ -191,10 +190,8 @@ def preprocess_features(X_train, X_test, feature_types):
         
         X_train_processed[feat_type] = X_train_feat.astype(np.float32)
         X_test_processed[feat_type] = X_test_feat.astype(np.float32)
-        
     
     return X_train_processed, X_test_processed
-
 
 
 def train_model(X_train_list, y_train, X_val_list, y_val, model):
@@ -217,6 +214,7 @@ def train_model(X_train_list, y_train, X_val_list, y_val, model):
         verbose=1
     )
     return history
+
 
 def evaluate_model(model, X_test_list, y_test):
     if isinstance(y_test, pd.Series):
@@ -262,7 +260,6 @@ class PytorchModelWrapper(nn.Module):
         with torch.no_grad():
             pred = self.keras_model.predict(inputs, verbose=0)
         
-
         output = torch.from_numpy(pred).float()
         return self._attach_gradients(output, snp, methy, expr, demo)
     
@@ -283,12 +280,12 @@ def interpret_model_simple(model, test_inputs, feature_names):
         
         feature_importance = np.zeros((tensor.shape[0], tensor.shape[1]))
         
-        for j in range(min(tensor.shape[1], 100)):  # Limit to first 50 features for speed
+        for j in range(min(tensor.shape[1], 100)):
             perturbed_inputs = [inp.copy() for inp in test_inputs]
-            perturbed_inputs[i][:, j] += 0.1  # Small perturbation
+            perturbed_inputs[i][:, j] += 0.1
             
             perturbed_pred = model.predict(perturbed_inputs, verbose=0)
-
+            
             feature_importance[:, j] = np.abs(perturbed_pred.flatten() - baseline_pred.flatten())
         
         importances.append(torch.tensor(feature_importance, dtype=torch.float32))
@@ -301,7 +298,6 @@ def interpret_model_captum(model, test_inputs, baselines):
         wrapper = PytorchModelWrapper(model)
         wrapper.eval()
         
-        # Convert inputs to tensors
         test_tensors = tuple(
             torch.tensor(arr, dtype=torch.float32, requires_grad=True)
             for arr in test_inputs
@@ -328,7 +324,6 @@ def interpret_model_captum(model, test_inputs, baselines):
         return None
 
 
-
 def interpret_model(model, test_inputs, baselines, feature_names):
     attributions = interpret_model_captum(model, test_inputs, baselines)
     
@@ -336,7 +331,6 @@ def interpret_model(model, test_inputs, baselines, feature_names):
         attributions = interpret_model_simple(model, test_inputs, feature_names)
     
     return attributions
-
 
 
 def export_attributions(attributions, feature_names, save_path_prefix):
@@ -352,7 +346,6 @@ def export_attributions(attributions, feature_names, save_path_prefix):
         df = pd.DataFrame(attr_data, columns=feature_names[i])
         df.to_csv(f"{save_path_prefix}_{name}.csv", index=False)
         print(f"Saved attributions for {name} to {save_path_prefix}_{name}.csv")
-
 
 
 def filter_matrices_by_top_features(snp_list, methy_list, gene_list, 
@@ -455,8 +448,8 @@ def main():
 
     data = load_and_process_data()
     
-    X = data.drop(columns=[col for col in data.columns if 'ADAS11_label' in col])
-    y = data['ADAS11_label']
+    X = data.drop(columns=[col for col in data.columns if 'MMSE_label' in col])
+    y = data['MMSE_label']
     
     print(y.describe())
     
@@ -485,7 +478,6 @@ def main():
     y_train_array = y_train.values.reshape(-1, 1).astype(np.float32)
     y_test_array = y_test.values.reshape(-1, 1).astype(np.float32)
 
-
     sparse_methy = pd.read_csv("snp_methyl_matrix.csv", index_col=0)
     sparse_gene = pd.read_csv("methyl_gene_matrix.csv.zip", compression='zip', index_col=0)
     sparse_pathway = pd.read_csv("gene_pathway_matrix.csv", index_col=0)
@@ -493,7 +485,6 @@ def main():
     sparse_methy_array = np.nan_to_num(sparse_methy.values, nan=0.0).astype(np.float32)
     sparse_gene_array = np.nan_to_num(sparse_gene.values, nan=0.0).astype(np.float32)
     sparse_pathway_array = np.nan_to_num(sparse_pathway.values, nan=0.0).astype(np.float32)
-
 
     input_first_layer = Input(shape=(X_train_snp.shape[1],), name='snp_input')
     input_second_layer = Input(shape=(X_train_methy.shape[1],), name='methy_input')
@@ -650,7 +641,6 @@ def main():
 
     history = train_model(X_train_list, y_train_array, X_test_list, y_test_array, model)
     
-
     results = evaluate_model(model, X_test_list, y_test_array)
     print(f"\nTest Results:")
     print(f"  MAE: {results['mae']:.4f}")
@@ -666,7 +656,7 @@ def main():
     attributions = interpret_model(model, X_test_list, baselines, feature_names)
 
     if attributions is not None:
-        export_attributions(attributions, feature_names, "ADAS11")
+        export_attributions(attributions, feature_names, "MMSE")
 
         snp_list = [name.replace('_snp', '') for name in feature_names[0][:20]]
         methy_list = [name.replace('_methy', '') for name in feature_names[1][:100]]
