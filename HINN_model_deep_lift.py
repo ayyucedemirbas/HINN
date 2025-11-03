@@ -198,7 +198,7 @@ def train_model(X_train_list, y_train, X_val_list, y_val, model):
     history = model.fit(
         x=X_train_list,
         y=y_train,
-        batch_size=64,
+        batch_size=32, #32 is better
         epochs=3000,
         shuffle=True,
         validation_data=(X_val_list, y_val),
