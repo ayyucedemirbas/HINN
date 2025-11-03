@@ -643,8 +643,8 @@ def main():
     )
 
     model.compile(
-        loss='mse',
-       #loss='mae',
+        #loss='mse',
+        loss='mae',
         optimizer=Adam(learning_rate=0.0001, clipnorm=1.0),
         metrics=['mae']
     )
