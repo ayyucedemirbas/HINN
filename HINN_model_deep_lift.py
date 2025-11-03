@@ -544,6 +544,15 @@ def main():
         name='secondary_2'
     )(input_third_layer)
 
+    #changing division to addition does not change anything (this is actually weird)
+    
+    #division_result_1 = keras.ops.add(third_output, second_output)
+    #division_output = MultiplicationInputLayer(
+    #    units=X_train_exp.shape[1], 
+    #    activation=activation_function,
+    #    name='mult_2'
+    #)(division_result_1)
+    
     epsilon = 1e-7
 
     division_result_1 = keras.ops.divide(third_output, second_output + epsilon)
