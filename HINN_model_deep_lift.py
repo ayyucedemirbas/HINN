@@ -543,6 +543,16 @@ def main():
         units=X_train_exp.shape[1],
         name='secondary_2'
     )(input_third_layer)
+
+    #the original implementation uses division
+    #epsilon = 1e-7  
+  
+    #division_result_1 = keras.ops.divide(third_output, second_output + epsilon)
+    #division_output = MultiplicationInputLayer(
+    #    units=X_train_exp.shape[1], 
+    #    activation=activation_function,
+    #    name='mult_2'
+    #)(division_result_1)
     
     division_result_1 = keras.ops.add(third_output, second_output)
     division_output = MultiplicationInputLayer(
